@@ -30,7 +30,7 @@ function transformArg(tool, arg)
   return config.toolType[tool][arg]
 end
 
-function transformArgs(_args)
+function transformArgs(tool,_args)
   local cmd = ''
   if(#args ~= 0)
   then
@@ -44,16 +44,16 @@ function transformArgs(_args)
   local short_opt, optarg = getOpts(_args)
 
   for k,v in pairs(short_opt) do
-    local t
     for i,j in pairs(config.args.alias) do
       if(j.arg == k and type(j.alias) == 'string') then
-        t = j.alias
+        if ((type(j.tool) == 'string' and j.tool == tool) or (type(j.tool) ~= 'string')) then
+          cmd = cmd..' '..j.alias..v
+        end
       end
     end
-    cmd = cmd..' '..t..v
   end
-  if(optarg == 1) then
-    cmd = table.concat(_args,' ')
+  if(cmd == '') then
+    cmd = ' '..table.concat(_args,' ')
   end
   return cmd
 end
@@ -84,13 +84,13 @@ function main()
   local currentGccTool = getGccTool()
   local currentTool = getToolType()
   config.load()
-  local cmd = transformArgs(args)
+  local cmd = transformArgs(currentTool,args)
   if (cmd == true) then
     return ''
   end
 
-  local env = 'export RTT_CC_PREFIX='..currentGccTool.prefix..' && export RTT_EXEC_PATH='..currentGccTool.path..' && '
   if(currentTool == 'scons' and currentGccTool ~= nil) then
+    local env = 'export RTT_CC_PREFIX='..currentGccTool.prefix..' && export RTT_EXEC_PATH='..currentGccTool.path..' && '
     cmd = env..currentTool..cmd
   else
     cmd = currentTool..cmd

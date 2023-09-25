@@ -87,8 +87,17 @@ function setArgs(args)
     arg['arg'] = parameter
   end
   local argAlias = {}
+  local aliasStart = 2
+  if(#args > 3) then
+    for k,v in pairs(config.toolType) do
+      if(k == args[3]) then
+        arg['tool'] = k
+        aliasStart = 3
+      end
+    end
+  end
   for i, v in ipairs(args) do
-    if (i > 2) then
+    if (i > aliasStart) then
       table.insert(argAlias, v)
     end
   end
