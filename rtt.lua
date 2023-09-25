@@ -1,8 +1,9 @@
 local args = {...}
+package.path = arg[0]:match("(.*[/\\])")..'?.lua;'..package.path
 
 local string = require("string")
-local config = loadfile(arg[0]:match("(.*[/\\])").."config.lua")()
-local getopt = loadfile(arg[0]:match("(.*[/\\])").."getopt.lua")()
+local config = require("config")
+local getopt = require("getopt")
 
 function getToolType()
   for k,v in pairs (config.toolType) do
@@ -12,43 +13,16 @@ function getToolType()
   end
 end
 
-function getSonOpts(cmd) -- 废弃 不采用这种方式  可以采用直接传入的方式
-  -- getToolType().." --help"
-  local logs = exec(cmd)
-  local options = {}
-  local opt = ''
-  local pattern = "([ ])([-]+)([(%a|%-)]+)"
-  local pattern2 = "([ ])([-]+)([(%a|%-)]+)([(,| |=)])([(%a| )])"
-  for k,str in pairs(logs) do
-    local sh = 0
-    for x,y,z in string.gmatch(str, pattern) do
-      if (y == '-')
-      then
-        sh = z
-        opt = opt..z
-      elseif(y == '--')
-      then
-        options[z] = sh
-      end
-    end
-    for x,y,z,a,b in string.gmatch(str, pattern2) do
-      if b:lower() >= 'a' and b:lower() <= 'z' then
-        if (y == '-')
-        then
-          opt = opt..':'
-        elseif(y == '--' and options[z] == 0)
-        then
-          options[z] = 1
-        end
-      end
+function getOpts(args)
+  local sh_opts = ''
+  local long_opts = {}
+  for k,v in pairs(config.args.alias) do
+    if (#(v.arg) == 1) then
+      sh_opts = sh_opts..v.arg..((v.parameter ~= true) and '' or ':')
+    else
+      long_opts[v.arg] = (v.parameter ~= true) and 0 or 1
     end
   end
-  return opt,options
-end
-
-function getOpts(args)
-  local sh_opts, long_opts = getSonOpts("scons --help")
-  long_opts["menu"] = 0
   return getopt.get_opts (args, sh_opts, long_opts)
 end
 
@@ -56,36 +30,30 @@ function transformArg(tool, arg)
   return config.toolType[tool][arg]
 end
 
-function transformArgs(tool, _args)
+function transformArgs(_args)
   local cmd = ''
-  local short_opt, optarg = getOpts(_args)
-  if(#_args == 0)
+  if(#args ~= 0)
   then
-    cmd = tool
-  elseif (optarg == 1)
-  then  -- 参数解析没成功
-    if(transformArg(tool,"actions")[_args[1]] == true)
-    then
-      cmd = tool.." "..table.concat(_args,' ')
-    -- else  rtt 特有命令可以放在这里
-    end
-  else -- 参数解析成功
-    cmd = tool
-    for k,v in pairs(short_opt) do
-      local t
-      if(transformArg(tool,k) == nil)
-      then
-        if(#k == 1)
-        then
-          t = '-'..k
-        else
-          t = '--'..k..((v == '') and '' or '=')
-        end
-      else
-        t = transformArg(tool,k)..((v == '') and '' or ' ')
+    for k,v in pairs(config.args.fun)do
+      if(v['arg'] == args[1] and type(v['fun']) == 'function') then
+        return v['fun'](args)
       end
-      cmd = cmd..' '..t..v
     end
+  end
+  
+  local short_opt, optarg = getOpts(_args)
+
+  for k,v in pairs(short_opt) do
+    local t
+    for i,j in pairs(config.args.alias) do
+      if(j.arg == k and type(j.alias) == 'string') then
+        t = j.alias
+      end
+    end
+    cmd = cmd..' '..t..v
+  end
+  if(optarg == 1) then
+    cmd = table.concat(_args,' ')
   end
   return cmd
 end
@@ -112,13 +80,20 @@ function getGccTool()
 end
 
 function main()
+
   local currentGccTool = getGccTool()
   local currentTool = getToolType()
-  local cmd = transformArgs(currentTool,args)
-  if(currentTool == 'scons' and currentGccTool ~= nil)
-  then
-    cmd = cmd..' --cc-prefix='..currentGccTool.prefix..' --cc-path='..currentGccTool.path
-    -- 应该放在前面，可以让用户覆盖
+  config.load()
+  local cmd = transformArgs(args)
+  if (cmd == true) then
+    return ''
+  end
+
+  local env = 'export RTT_CC_PREFIX='..currentGccTool.prefix..' && export RTT_EXEC_PATH='..currentGccTool.path..' && '
+  if(currentTool == 'scons' and currentGccTool ~= nil) then
+    cmd = env..currentTool..cmd
+  else
+    cmd = currentTool..cmd
   end
   print(cmd)
   os.execute(cmd)
