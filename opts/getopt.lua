@@ -1,5 +1,3 @@
-local type, pairs, ipairs, io, os = type, pairs, ipairs, io, os
-
 getopt = {}
 
 local function convert_short2long(opts)

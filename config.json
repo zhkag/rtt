@@ -1,1 +1,0 @@
-[{"arg":"menu","alias":"--menuconfig"},{"parameter":true,"arg":"j","alias":"-j"},{"parameter":true,"arg":"cj","alias":"-c && scons -j"}]
