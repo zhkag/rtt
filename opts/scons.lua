@@ -3,7 +3,7 @@ require('opts.base')
 local Scons = Base:new(Base)
 
 function Scons:new (o)
-  if o == nil then
+  if not o then
     o = Base:new({})
   end
   setmetatable(o, self)

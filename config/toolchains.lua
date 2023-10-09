@@ -34,8 +34,7 @@ local function getGccTool()
   local log = exec("pwd")
   for k,tool in pairs(tools) do
     for k,v in pairs(tool.bsps) do
-      if(string.find(log[1], string.gsub(v,'-','--')) ~= nil)
-      then
+      if string.find(log[1], string.gsub(v,'-','--'))then
         return tool
       end
     end
@@ -44,7 +43,7 @@ end
 
 function setEnv()
   local tool = getGccTool()
-  if(tool == nil) then
+  if not tool then
     return ''
   end
   return 'export RTT_CC_PREFIX='..tool.prefix..' && export RTT_EXEC_PATH='..tool.path..' && '

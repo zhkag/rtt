@@ -3,7 +3,7 @@ require("opts.base")
 local Template = Base:new(Base)
 
 function Template:new (o)
-  if o == nil then
+  if not o then
     o = Base:new({})
   end
   -- o = o or Base:new(o)

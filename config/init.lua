@@ -11,22 +11,22 @@ end
 
 local function file_load(filename)
   local file
-  if filename == nil then
+  if not filename then
     file = io.stdin
   else
     local err
     file, err = io.open(filename, "rb")
-    if file == nil then
+    if not file then
       error(("Unable to read '%s': %s"):format(filename, err))
     end
   end
   local data = file:read("*a")
 
-  if filename ~= nil then
+  if filename then
     file:close()
   end
 
-  if data == nil then
+  if data then
     error("Failed to read " .. filename)
   end
 
@@ -35,17 +35,17 @@ end
 
 local function file_save(filename, data)
   local file
-  if filename == nil then
+  if filename then
     file = io.stdout
   else
     local err
     file, err = io.open(filename, "wb")
-    if file == nil then
+    if file then
       error(("Unable to write '%s': %s"):format(filename, err))
     end
   end
   file:write(data)
-  if filename ~= nil then
+  if filename then
     file:close()
   end
 end
