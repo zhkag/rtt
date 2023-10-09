@@ -1,4 +1,4 @@
-local Base = {name='base',prefix='',param=0,alias={},description='description'}
+Base = {name='base',prefix='',param=0,alias={},description='description'}
 
 function Base:new (o)
   o = o or {}

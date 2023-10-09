@@ -1,4 +1,4 @@
-local cjson = require('cjson')
+local cjson = require('lib.cjson')
 local Config = {name='file'}
 
 function Config:new (o,name)

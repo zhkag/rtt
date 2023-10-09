@@ -44,6 +44,9 @@ end
 
 function setEnv()
   local tool = getGccTool()
+  if(tool == nil) then
+    return ''
+  end
   return 'export RTT_CC_PREFIX='..tool.prefix..' && export RTT_EXEC_PATH='..tool.path..' && '
 end
 
