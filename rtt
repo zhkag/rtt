@@ -1,0 +1,6 @@
+#!/bin/bash
+
+export RTT_PATH=`readlink -f "$0" | xargs dirname`
+export LUA_CPATH="${RTT_PATH}/lib/?.so;${LUA_CPATH}"
+export LUA_PATH="${RTT_PATH}/?.lua;${RTT_PATH}/?/init.lua;${LUA_PATH}"
+lua ${RTT_PATH}/rtt.lua $@
