@@ -67,7 +67,15 @@ fn get_tool(config:&Value) -> String {
     return "".to_string();
 }
 
-fn get_tool_chain(config:&Value) -> ToolChain {
+fn remove_long_path_prefix(path: &str) -> String {
+    if path.starts_with("\\\\?\\") {
+        path[4..].replace("\\", "\\\\")
+    } else {
+        path.replace("\\", "\\\\")
+    }
+}
+
+fn get_tool_chain(config:&Value,config_path:&str) -> ToolChain {
     let current_path = env::current_dir().expect("REASON");
     let current_path = current_path.to_str().unwrap();
     let rtconfig = current_path.to_owned() + "/rtconfig.h";
@@ -104,6 +112,20 @@ fn get_tool_chain(config:&Value) -> ToolChain {
                 current_tool.name = name.to_string();
                 current_tool.path = toolchain["path"].to_string().trim_matches('"').to_string();
                 current_tool.prefix = toolchain["prefix"].to_string().trim_matches('"').to_string();
+                #[cfg(target_os = "windows")]
+                {
+                let root_config = env::current_exe().expect("REASON").parent().expect("REASON").to_str().unwrap().to_owned();
+                if config_path.contains(&root_config) && current_tool.path.starts_with("."){
+                    println!("current_tool.path：{} {}",config_path,root_config);
+                    let path = Path::new(config_path).join("../").join(current_tool.path.clone());
+                    if !Path::new(&path).exists() {
+                        cmd(&("scoop install ".to_owned() + name));
+                    }
+                    let absolute_path = path.canonicalize().expect("工具链路径有问题，尽量不要用相对路径！！");
+                    current_tool.path = remove_long_path_prefix(absolute_path.to_str().unwrap_or("")).to_string();
+                    
+                }
+                }
                 return current_tool;
             }
         }
@@ -180,9 +202,9 @@ fn get_build_tool() -> Vec<String>{
 
     let mut rets = Vec::new();
 
-    let path = "tools.json";
-    let path = get_config_path(path);
-    let file = File::open(path).unwrap();
+    let config_path = "tools.json";
+    let config_path = get_config_path(config_path);
+    let file = File::open(config_path.clone()).unwrap();
     let reader = BufReader::new(file);
 
     let parsed:Value= serde_json::from_reader(reader).unwrap();
@@ -190,7 +212,7 @@ fn get_build_tool() -> Vec<String>{
         command = get_tool(&parsed);
     }
     if command == "scons"{
-        let current_tool_chain =  get_tool_chain(&parsed);
+        let current_tool_chain =  get_tool_chain(&parsed,&config_path);
         #[cfg(target_os = "linux")]
         {
         command_prefix = format!("export RTT_CC_PREFIX={} && export RTT_EXEC_PATH={} && ", current_tool_chain.prefix,current_tool_chain.path);
