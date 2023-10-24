@@ -127,20 +127,18 @@ fn cmd(command:&str) {
     let mut child = Command::new(cmd)
         .arg(cmd_c)
         .arg(command)
-        .stdout(Stdio::piped())
+        .stdout(Stdio::inherit())
+        .stderr(Stdio::inherit())
         .spawn()
         .expect("Failed to execute command");
 
-    let stdout = child.stdout.take().unwrap();
-    let reader = io::BufReader::new(stdout);
+    let status = child.wait()
+        .expect("Failed to wait for {command}");
 
-    for line in reader.lines() {
-        println!("{}", line.expect("Failed to read line"));
-    }
-
-    let status = child.wait().expect("Failed to wait for command");
-    if !status.success() {
-        println!("Command failed with status: {}", status);
+    if status.success() {
+        println!("{command} executed successfully");
+    } else {
+        println!("{command} failed");
     }
 }
 
@@ -148,8 +146,30 @@ fn get_build_tool() -> Vec<String>{
     let args: Vec<String> = env::args().collect();
     let mut only_args: Vec<String> = Vec::new();
     let mut command = "".to_string();
+    let mut command_prefix:String = "".to_string();
     if args.len() > 1{
-        if args[1].starts_with("-") {
+        let menuconfigs = [
+            "--menu",
+            "--menuconfig",
+            "menu",
+            "menuconfig"
+        ];
+        for menuconfig in menuconfigs.iter(){
+            if &args[1] == menuconfig{
+                #[cfg(target_os = "linux")]
+                {
+                    command = "scons --menuconfig".to_string();
+                }
+                #[cfg(target_os = "windows")]
+                {
+                    command = "menuconfig".to_string();
+                }
+                only_args = (&args[2..]).to_vec();
+                break;
+            }
+        }
+        if command != "".to_string(){}
+        else if args[1].starts_with("-") {
             only_args = (&args[1..]).to_vec()
         }
         else {
@@ -169,7 +189,6 @@ fn get_build_tool() -> Vec<String>{
     if command == "" {
         command = get_tool(&parsed);
     }
-    let mut command_prefix:String = "".to_string();
     if command == "scons"{
         let current_tool_chain =  get_tool_chain(&parsed);
         #[cfg(target_os = "linux")]
