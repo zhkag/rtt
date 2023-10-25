@@ -59,6 +59,16 @@ r#"{ "tools":
       "prefix":"arm-none-eabi-",
       "path":"../../../rt-gcc-arm-none-eabi/current/bin",
       "bsps":["stm32","qemu-vexpress-a9"]
+    },
+    "rt-aarch64-none-elf": {
+      "prefix":"aarch64-none-elf-",
+      "path":"../../../rt-aarch64-none-elf/current/bin",
+      "bsps":["aarch64","rk3568","raspi3-64","raspi4-64"]
+    },
+    "rt-xpack-riscv-none-embed": {
+      "prefix":"riscv-none-embed-",
+      "path":"../../../rt-xpack-riscv-none-embed/current/bin",
+      "bsps":["k210","gd32vf103v-eval"]
     }
   },
   "smarttoolchains": {
