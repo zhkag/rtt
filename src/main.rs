@@ -6,7 +6,6 @@ use std::env;
 use std::process::{Command, Stdio};
 use std::io;
 use std::fs;
-use std::io::Write;
 mod config;
 mod path;
 
