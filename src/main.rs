@@ -36,15 +36,10 @@ fn remove_long_path_prefix(path: &str) -> String {
     }
 }
 
-fn get_tool_chain(config:&Value,config_path:&str) -> ToolChain {
-    let current_path = env::current_dir().expect("REASON");
-    let current_path = current_path.to_str().unwrap();
-    let rtconfig = current_path.to_owned() + "/rtconfig.h";
-    let mut smart_flag = "toolchains";
-
+fn is_smart(rtconfig:&str) -> usize{
     if let Ok(metadata) = fs::metadata(rtconfig) {
         if metadata.is_file() {
-            let file = File::open(current_path.to_owned()+"/rtconfig.h").expect("Failed to open file");
+            let file = File::open(rtconfig).expect("rtconfig Failed to open file");
             let reader = io::BufReader::new(file);
             let mut contains_string = false;
             for line in reader.lines() {
@@ -56,10 +51,18 @@ fn get_tool_chain(config:&Value,config_path:&str) -> ToolChain {
                 }
             }
             if contains_string {
-                smart_flag = "smarttoolchains";
+                return 1;
             }
         }
     }
+    0
+}
+
+fn get_tool_chain(config:&Value,config_path:&str) -> ToolChain {
+    let current_path = env::current_dir().expect("REASON");
+    let current_path = current_path.to_str().unwrap();
+    let rtconfig = current_path.to_owned() + "/rtconfig.h";
+    let smart_flags = ["toolchains", "smarttoolchains"];
 
     let mut current_tool = ToolChain {
         name: String::from("arm"),
@@ -67,27 +70,29 @@ fn get_tool_chain(config:&Value,config_path:&str) -> ToolChain {
         path: String::from("/bin"),
     };
 
-    for (name, toolchain) in config[smart_flag].as_object().unwrap() {
-        for bsp in toolchain["bsps"].as_array().unwrap() {
-            if current_path.contains(bsp.as_str().unwrap()) {
-                current_tool.name = name.to_string();
-                current_tool.path = toolchain["path"].to_string().trim_matches('"').to_string();
-                current_tool.prefix = toolchain["prefix"].to_string().trim_matches('"').to_string();
-                #[cfg(target_os = "windows")]
-                {
-                let root_config = env::current_exe().expect("REASON").parent().expect("REASON").to_str().unwrap().to_owned();
-                if config_path.contains(&root_config) && current_tool.path.starts_with("."){
-                    println!("current_tool.path：{} {}",config_path,root_config);
-                    let path = std::path::Path::new(config_path).join("../").join(current_tool.path.clone());
-                    if !std::path::Path::new(&path).exists() {
-                        cmd(&("scoop install ".to_owned() + name));
+    for flag in &smart_flags[is_smart(&rtconfig)..] {
+        for (name, toolchain) in config[flag].as_object().unwrap() {
+            for bsp in toolchain["bsps"].as_array().unwrap() {
+                if current_path.contains(bsp.as_str().unwrap()) {
+                    current_tool.name = name.to_string();
+                    current_tool.path = toolchain["path"].to_string().trim_matches('"').to_string();
+                    current_tool.prefix = toolchain["prefix"].to_string().trim_matches('"').to_string();
+                    #[cfg(target_os = "windows")]
+                    {
+                        let root_config = env::current_exe().expect("REASON").parent().expect("REASON").to_str().unwrap().to_owned();
+                        if config_path.contains(&root_config) && current_tool.path.starts_with("."){
+                            println!("current_tool.path：{} {}",config_path,root_config);
+                            let path = std::path::Path::new(config_path).join("../").join(current_tool.path.clone());
+                            if !std::path::Path::new(&path).exists() {
+                                cmd(&("scoop install ".to_owned() + name));
+                            }
+                            let absolute_path = path.canonicalize().expect("工具链路径有问题，尽量不要用相对路径！！");
+                            current_tool.path = remove_long_path_prefix(absolute_path.to_str().unwrap_or("")).to_string();
+
+                        }
                     }
-                    let absolute_path = path.canonicalize().expect("工具链路径有问题，尽量不要用相对路径！！");
-                    current_tool.path = remove_long_path_prefix(absolute_path.to_str().unwrap_or("")).to_string();
-                    
+                    return current_tool;
                 }
-                }
-                return current_tool;
             }
         }
     }
