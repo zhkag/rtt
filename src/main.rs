@@ -6,7 +6,6 @@ use std::env;
 use std::process::{Command, Stdio};
 use std::io;
 use std::fs;
-use std::fs::create_dir_all;
 use std::io::Write;
 mod config;
 mod path;
@@ -58,6 +57,19 @@ fn is_smart(rtconfig:&str) -> usize{
     0
 }
 
+fn norm_tool_path(path:&String,config_path:&str, name:&str) -> String{
+    let root_config = env::current_exe().expect("REASON").parent().expect("REASON").to_str().unwrap().to_owned();
+    if config_path.contains(&root_config) && path.starts_with("."){
+        let path = std::path::Path::new(config_path).join("../").join(path.clone());
+        if !std::path::Path::new(&path).exists() {
+            cmd(&("scoop install ".to_owned() + name));
+        }
+        let absolute_path = path.canonicalize().expect("工具链路径有问题，尽量不要用相对路径！！");
+        return remove_long_path_prefix(absolute_path.to_str().unwrap_or("")).to_string();
+    }
+    path.to_string()
+}
+
 fn get_tool_chain(config:&Value,config_path:&str) -> ToolChain {
     let current_path = env::current_dir().expect("REASON");
     let current_path = current_path.to_str().unwrap();
@@ -79,23 +91,18 @@ fn get_tool_chain(config:&Value,config_path:&str) -> ToolChain {
                     current_tool.prefix = toolchain["prefix"].to_string().trim_matches('"').to_string();
                     #[cfg(target_os = "windows")]
                     {
-                        let root_config = env::current_exe().expect("REASON").parent().expect("REASON").to_str().unwrap().to_owned();
-                        if config_path.contains(&root_config) && current_tool.path.starts_with("."){
-                            println!("current_tool.path：{} {}",config_path,root_config);
-                            let path = std::path::Path::new(config_path).join("../").join(current_tool.path.clone());
-                            if !std::path::Path::new(&path).exists() {
-                                cmd(&("scoop install ".to_owned() + name));
-                            }
-                            let absolute_path = path.canonicalize().expect("工具链路径有问题，尽量不要用相对路径！！");
-                            current_tool.path = remove_long_path_prefix(absolute_path.to_str().unwrap_or("")).to_string();
-
-                        }
+                        current_tool.path = norm_tool_path(&current_tool.path,&config_path,name);
                     }
                     return current_tool;
                 }
             }
         }
     }
+    let default_tool_name = "rt-gcc-arm-none-eabi";
+    let default_tool_path = config["toolchains"][default_tool_name]["path"].as_str().unwrap().to_string();
+    current_tool.name = default_tool_name.to_string();
+    current_tool.path = norm_tool_path(&default_tool_path,&config_path,default_tool_name);
+    current_tool.prefix = config["toolchains"][default_tool_name]["prefix"].as_str().unwrap().to_string();
     return current_tool;
 }
 
