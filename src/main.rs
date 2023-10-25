@@ -2,15 +2,14 @@ use serde_json::Value;
 use std::fs::File;
 use std::io::BufRead;
 use std::io::BufReader;
-use std::path::Path;
 use std::env;
 use std::process::{Command, Stdio};
 use std::io;
 use std::fs;
 use std::fs::create_dir_all;
 use std::io::Write;
-use dirs::home_dir;
 mod config;
+mod path;
 
 struct ToolChain {
     name: String,
@@ -18,48 +17,10 @@ struct ToolChain {
     path: String,
 }
 
-fn get_config_path(_path:&str) -> String{
-    let root_config = env::current_exe().expect("REASON").parent().expect("REASON").to_str().unwrap().to_owned() + "/config/";
-    let home_config = home_dir().expect("REASON").to_str().unwrap().to_owned()  + "/.config/";
-    let prefix_paths = [
-        ".rtt/".to_owned(),
-        home_config,
-        root_config.clone()
-    ];
-    for prefix in prefix_paths.iter(){
-        if Path::new(&(prefix.to_owned() + _path)).exists() {
-            return prefix.to_owned() + _path;
-        }
-    }
-
-    println!("root_config:{:?}", root_config);
-    if let Ok(metadata) = fs::metadata(root_config.clone()) {
-        if metadata.is_file() {
-        }
-    }else {
-        match create_dir_all(root_config.clone()) {
-            Ok(_) => println!("{root_config} 目录创建成功"),
-            Err(error) => panic!("无法创建目录: {:?}", error),
-        }
-    }
-    let mut file = match File::create(root_config.to_owned() + _path) {
-        Ok(file) => file,
-        Err(error) => panic!("无法创建文件: {:?}", error),
-    };
-
-    // 写入内容到文件
-    match file.write_all(config::initial().as_bytes()) {
-        Ok(_) => println!("文件创建成功并写入内容"),
-        Err(error) => panic!("无法写入文件内容: {:?}", error),
-    }
-
-    return root_config.to_owned() + _path;
-}
-
 fn get_tool(config:&Value) -> String {
     for (key, values) in config["tools"].as_object().unwrap() {
         for value in values.as_array().unwrap() {
-            if Path::new(value.as_str().unwrap()).exists() {
+            if std::path::Path::new(value.as_str().unwrap()).exists() {
                 return key.to_string();
             }
         }
@@ -117,8 +78,8 @@ fn get_tool_chain(config:&Value,config_path:&str) -> ToolChain {
                 let root_config = env::current_exe().expect("REASON").parent().expect("REASON").to_str().unwrap().to_owned();
                 if config_path.contains(&root_config) && current_tool.path.starts_with("."){
                     println!("current_tool.path：{} {}",config_path,root_config);
-                    let path = Path::new(config_path).join("../").join(current_tool.path.clone());
-                    if !Path::new(&path).exists() {
+                    let path = std::path::Path::new(config_path).join("../").join(current_tool.path.clone());
+                    if !std::path::Path::new(&path).exists() {
                         cmd(&("scoop install ".to_owned() + name));
                     }
                     let absolute_path = path.canonicalize().expect("工具链路径有问题，尽量不要用相对路径！！");
@@ -203,7 +164,7 @@ fn get_build_tool() -> Vec<String>{
     let mut rets = Vec::new();
 
     let config_path = "tools.json";
-    let config_path = get_config_path(config_path);
+    let config_path = path::config(config_path,config::initial().as_bytes());
     let file = File::open(config_path.clone()).unwrap();
     let reader = BufReader::new(file);
 
